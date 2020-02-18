@@ -1,0 +1,19 @@
+﻿Plan:
+-User configures the map they want
+	-Specify boundaries (county, state, etc.)
+	-Specify data
+	-Specify mapping from data to colors
+-User presses button to generate KML file
+
+
+Maps that should be generated:
+-States visited
+-County heat maps from census demographics data
+
+
+
+
+Things to code:
+-Load a KmlFile
+-Create styles for the colors we're going to use (add them to the doc)
+-For each region, set the style based on the desired color
