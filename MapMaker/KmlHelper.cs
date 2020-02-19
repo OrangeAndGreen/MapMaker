@@ -2,6 +2,7 @@
 using SharpKml.Engine;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Eventing.Reader;
 using System.IO;
 using System.Linq;
 
@@ -16,11 +17,16 @@ namespace MapMaker
             return file;
         }
 
-        public static List<Feature> LoadFeaturesFromKml(string filename)
+        public static List<Placemark> LoadPlacemarksFromKml(string filename)
         {
-            List<Feature> ret = new List<Feature>();
-
             KmlFile file = Load(filename);
+            
+            return LoadPlacemarksFromKml(file);
+        }
+
+        public static List<Placemark> LoadPlacemarksFromKml(KmlFile file)
+        {
+            List<Placemark> ret = new List<Placemark>();
 
             if (!(file.Root is Kml kml))
             {
@@ -42,29 +48,31 @@ namespace MapMaker
 
             foreach (Feature feature in doc.Features)
             {
-                ret.AddRange(ExtractFeatures(feature));
+                ret.AddRange(ExtractPlacemarks(feature));
             }
 
             return ret;
         }
 
-        private static List<Feature> ExtractFeatures(Feature top)
+        private static List<Placemark> ExtractPlacemarks(Feature top)
         {
-            List<Feature> ret = new List<Feature>();
-            if (top is Folder folder)
+            List<Placemark> ret = new List<Placemark>();
+            switch (top)
             {
-                //lines.Add($"{header}Folder: {top.Name}");
-                if (!folder.Features.Any())
+                case Folder folder when !folder.Features.Any():
                     return ret;
-
-                foreach (Feature child in folder.Features)
+                case Folder folder:
                 {
-                    ret.AddRange(ExtractFeatures(child));
+                    foreach (Feature child in folder.Features)
+                    {
+                        ret.AddRange(ExtractPlacemarks(child));
+                    }
+
+                    break;
                 }
-            }
-            else
-            {
-                ret.Add(top);
+                case Placemark p:
+                    ret.Add(p);
+                    break;
             }
 
             return ret;
@@ -129,6 +137,93 @@ namespace MapMaker
             }
 
             return lines;
+        }
+
+        public static string GetFeatureName(Feature feature)
+        {
+            string name = feature.Name;
+            while (true)
+            {
+                int openIndex = name.IndexOf('<');
+                int closeIndex = name.IndexOf('>');
+
+                if (openIndex < 0 || closeIndex < openIndex)
+                {
+                    break;
+                }
+
+                name = name.Remove(openIndex, closeIndex - openIndex + 1);
+            }
+
+            return name;
+        }
+
+        public static void SaveKml(KmlFile file, string filename)
+        {
+            if (File.Exists(filename))
+            {
+                File.Delete(filename);
+            }
+
+            using (var stream = File.OpenWrite(filename))
+            {
+                file.Save(stream);
+            }
+        }
+
+        public static void WriteNewKml(string filename, List<Placemark> features, List<Style> styles)
+        {
+            Document doc = new Document();
+
+            foreach (Style style in styles)
+            {
+                doc.AddStyle(style);
+            }
+
+            features.Sort((p1, p2) => p1.Name.CompareTo(p2.Name));
+
+            foreach (Placemark feature in features)
+            {
+                MultipleGeometry newMulti = new MultipleGeometry();
+                switch (feature.Geometry)
+                {
+                    case MultipleGeometry multi:
+                    {
+                        foreach (Geometry geom in multi.Geometry)
+                        {
+                            if (geom is Polygon p)
+                            {
+                                newMulti.AddGeometry(new Polygon { OuterBoundary = p.OuterBoundary });
+                            }
+                        }
+
+                        break;
+                    }
+                    case Polygon p:
+                    {
+                        newMulti.AddGeometry(new Polygon { OuterBoundary = p.OuterBoundary });
+                        break;
+                    }
+                    default:
+                    {
+                        Console.WriteLine("Encountered unexpected geometry");
+                        break;
+                    }
+                }
+
+                Placemark newPlacemark = new Placemark
+                {
+                    Name = GetFeatureName(feature),
+                    Geometry = newMulti,
+                    StyleUrl = feature.StyleUrl
+                };
+
+                doc.AddFeature(newPlacemark);
+            }
+
+            KmlFile file = KmlFile.Create(new Kml { Feature = doc }, false);
+
+            SaveKml(file, filename);
         }
     }
 }

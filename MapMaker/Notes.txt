@@ -17,3 +17,49 @@ Things to code:
 -Load a KmlFile
 -Create styles for the colors we're going to use (add them to the doc)
 -For each region, set the style based on the desired color
+
+
+Brainstorming:
+There are multiple aspects to what I want to do:
+	1) Draw a map given a data file
+	2) Build the various data files
+
+
+
+Drawing maps:
+	Data file dictates the map
+		Source (counties, states, etc.) determined by data in the file
+		Coloring (binary, multi, scaled) determined by data values
+			Scan the data file when selected
+			If no 2nd column or only two values present >> binary
+			If 
+
+
+
+Building data files:
+	Data file format:
+		CSV file
+		1st column: Place name
+		2nd column: Place value (OPTIONAL)
+
+
+
+Putting the UI together:
+	Startup:
+		Code loads and prepares the map sources (including renaming counties/districts)
+	User selects a data file
+	Code scans the data file and indicates type of data and available values
+	User selects coloring details
+		Either a color ramp or a list of colors
+		For ramp, option to specify manual min and max values
+	User presses Go
+	Code generates the map
+
+
+TODOs:
+	-Create a MapSource class for holding the sources
+	-Extract state codes
+	-Use state codes to augment county/district names
+	-Scan data file when loaded and report findings
+	-Extract other info from KMLs (i.e. land area for counties/states)
+	-Implement color schemes (IColorScheme interface, with AssignedColorScheme and MappedColorScheme classes)
